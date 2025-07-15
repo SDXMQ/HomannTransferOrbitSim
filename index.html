@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>붉은 행성을 향하여: 지구-화성 항해 시뮬레이터</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* 상단 정렬 */
+            margin: 0;
+            padding: 20px;
+            background-color: #0c0c1a;
+            color: #f0f0f0;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .page-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            width: 100%;
+            max-width: 1600px;
+        }
+        .main-title {
+            font-size: 2.5em;
+            font-weight: 700;
+            text-align: center;
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(58, 134, 255, 0.7);
+            margin: 0;
+        }
+        .top-info-bar {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+        }
+        .top-container {
+            display: flex;
+            flex-direction: row;
+            gap: 30px;
+            align-items: flex-start;
+        }
+        .simulation-column {
+            flex: 2.5;
+        }
+        .interface-column {
+            flex: 1;
+        }
+        .explanation-column {
+            padding: 25px;
+            background-color: #1a1a2e;
+            border-radius: 10px;
+        }
+        #canvasContainer {
+            position: relative;
+            background-color: #000;
+            border-radius: 10px;
+            box-shadow: 0 0 25px rgba(58, 134, 255, 0.3);
+            width: 100%;
+            padding-top: 100%; 
+            height: 0;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #controls, .info-box {
+            padding: 20px;
+            background-color: #1a1a2e;
+            border-radius: 10px;
+        }
+        .info-box {
+            flex: 1; /* Make info boxes share space equally */
+        }
+        h2, h3, h4 {
+            text-align: center;
+            margin: 0 0 10px 0;
+            color: #e0e0e0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+        h3 { color: #3a86ff; }
+        #controls { display: flex; flex-direction: column; gap: 15px; }
+        button {
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            background-color: #3a86ff;
+            color: white;
+            transition: background-color 0.3s;
+            font-weight: 700;
+        }
+        button:hover { background-color: #0056d3; }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+        label { display: block; margin-bottom: 5px; font-weight: 400; }
+        input[type="range"] { width: 100%; }
+        .info-box p {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        span.value { color: #ffff00; font-weight: bold; }
+        .explanation-column h2 { text-align: left; }
+        .explanation-column p, .explanation-column li { font-size: 15px; line-height: 1.8; font-weight: 300; }
+        .explanation-column ul { padding-left: 20px; }
+        .highlight { color: #ffff00; font-weight: 400; }
+    </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+    <h1 class="main-title">붉은 행성을 향하여: 지구-화성 항해 시뮬레이터</h1>
+
+    <div class="top-info-bar">
+        <div id="infoPanel" class="info-box">
+            <h4>시뮬레이션 정보</h4>
+            <p>경과 시간: <span id="daysElapsed" class="value">0 일</span></p>
+        </div>
+         <div id="spacecraftInfoPanel" class="info-box">
+            <h4>우주선 상태</h4>
+            <p>상태: <span id="status" class="value">대기 중</span></p>
+            <p>도착까지 남은 시간: <span id="timeToArrival" class="value">N/A</span></p>
+            <p>총 필요 속도 변화량(ΔV): <span id="deltaV" class="value">N/A</span></p>
+        </div>
+    </div>
+
+    <div class="top-container">
+        <div class="simulation-column">
+            <div id="canvasContainer">
+                <canvas id="solarSystemCanvas"></canvas>
+            </div>
+        </div>
+        <div class="interface-column">
+            <div id="controls">
+                <h2>시뮬레이션 제어</h2>
+                <button id="startButton">시작</button>
+                <button id="stopButton" disabled>정지</button>
+                <button id="launchButton" disabled>우주선 발사</button>
+                <div>
+                    <label for="speedSlider">시뮬레이션 속도</label>
+                    <input type="range" id="speedSlider" min="0.1" max="3.1" value="0.1">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="explanation-container">
+        <div class="explanation-column">
+            <h2>화성 탐사의 첫걸음: 호만 전이 궤도</h2>
+            <p>이 시뮬레이션은 지구에서 화성으로 우주선을 보내는 가장 기본적인 방법인 '호만 전이 궤도'를 시각적으로 보여줍니다. 호만 궤도는 연료(에너지)를 가장 적게 사용하여 행성 간 이동을 할 수 있는 타원형 경로입니다.</p>
+    
+            <h3>1. 호만 전이 궤도란?</h3>
+            <p>1925년 독일의 공학자 발터 호만이 제안한 이 궤도는 두 개의 다른 원궤도(지구 궤도와 화성 궤도)에 정확히 접하는 타원 궤도입니다. 이 방법의 핵심은 <span class="highlight">에너지 효율성</span>입니다.</p>
+            <ul>
+                <li><strong>최소 에너지:</strong> 우주선은 지구 궤도를 떠날 때 한 번, 화성 궤도에 도착할 때 또 한 번, 총 두 번의 엔진 분사만으로 궤도를 변경합니다. 비행 중간에는 오직 태양의 중력에만 의존하여 항해합니다.</li>
+                <li><strong>긴 비행 시간:</strong> 연료를 아끼는 대신, 비행 시간은 길어집니다. 지구에서 화성까지 약 <span class="highlight">259일 (약 8.5개월)</span>이 소요됩니다.</li>
+            </ul>
+    
+            <h3>2. 최적의 발사 시점 (발사창)</h3>
+            <p>아무 때나 우주선을 발사해서는 화성을 만날 수 없습니다. 우주선이 머나먼 여정 끝에 화성 궤도에 도착했을 때, 바로 그 지점에 화성이 와 있어야만 합니다. 이를 '랑데부 문제'라고 부릅니다.</p>
+            <ul>
+                <li><strong>위상각 (Phase Angle):</strong> 발사 시점에 화성은 지구보다 약 <span class="highlight">44도</span> 정도 앞에서 공전하고 있어야 합니다. 시뮬레이션에서 '우주선 발사'를 누르면 나타나는 <span style="color:red; font-weight:bold;">붉은 점</span>이 바로 이 최적의 발사 위치를 나타냅니다.</li>
+                <li><strong>회합 주기 (Synodic Period):</strong> 지구와 화성이 이러한 최적의 위치에 놓이는 주기는 약 <span class="highlight">780일 (약 26개월)</span>에 한 번씩 찾아옵니다. 이 때문에 화성 탐사선 발사는 2년 2개월마다 특정 기간에 집중됩니다.</li>
+            </ul>
+            
+            <h3>3. 시뮬레이션 사용법</h3>
+            <ol>
+                <li><strong>시작:</strong> '시작' 버튼을 눌러 행성들의 공전을 시작합니다. 시간은 실제 행성들의 공전 주기에 맞춰 흘러갑니다.</li>
+                <li><strong>우주선 발사:</strong> '우주선 발사' 버튼을 누릅니다. 지구 궤도에 최적의 발사 지점을 나타내는 <span style="color:red; font-weight:bold;">붉은 점</span>이 생성됩니다.</li>
+                <li><strong>자동 발사:</strong> 지구가 공전하여 <span style="color:red; font-weight:bold;">붉은 점</span>에 도달하면, 우주선이 자동으로 발사되어 노란색 점선 궤도를 따라 화성으로의 여정을 시작합니다.</li>
+                <li><strong>상태 확인:</strong> 우주선의 현재 상태, 도착까지 남은 시간, 필요한 총 속도 변화량(ΔV) 등의 정보를 실시간으로 확인할 수 있습니다.</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('solarSystemCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // UI Elements
+    const startButton = document.getElementById('startButton');
+    const stopButton = document.getElementById('stopButton');
+    const launchButton = document.getElementById('launchButton');
+    const speedSlider = document.getElementById('speedSlider');
+    const daysElapsedSpan = document.getElementById('daysElapsed');
+    const statusSpan = document.getElementById('status');
+    const timeToArrivalSpan = document.getElementById('timeToArrival');
+    const deltaVSpan = document.getElementById('deltaV');
+
+    const centerX = () => canvas.width / 2;
+    const centerY = () => canvas.height / 2;
+    const AU = () => canvas.width / 4; 
+
+    const PLANET_DATA = {
+        mercury: { name: '수성', radiusAU: 0.387, periodDays: 88.0, color: '#999999', size: 3 },
+        venus:   { name: '금성', radiusAU: 0.723, periodDays: 224.7, color: '#d99f3b', size: 5 },
+        earth:   { name: '지구', radiusAU: 1.0, periodDays: 365.25, color: '#3a86ff', size: 6 },
+        mars:    { name: '화성', radiusAU: 1.524, periodDays: 687.0, color: '#ff5733', size: 4.5 }
+    };
+
+    const HOHMANN_TRANSFER = {
+        timeOfFlightDays: 258.87,
+        get phaseAngleDeg() {
+            const marsAngleTravel = (360 / PLANET_DATA.mars.periodDays) * this.timeOfFlightDays;
+            return 180 - marsAngleTravel;
+        },
+        totalDeltaV: 5.5
+    };
+    
+    let simulationState = {
+        running: false,
+        elapsedDays: 0,
+        speed: 0.1
+    };
+
+    let planets = [];
+    let spacecrafts = [];
+    let launchRequests = [];
+    let animationFrameId;
+
+    class Planet {
+        constructor(data) {
+            this.name = data.name;
+            this.radiusAU = data.radiusAU;
+            this.period = data.periodDays;
+            this.color = data.color;
+            this.size = data.size;
+            this.initialAngle = Math.random() * 2 * Math.PI;
+            this.angle = this.initialAngle;
+            this.x = 0;
+            this.y = 0;
+        }
+
+        update(days) {
+            this.radius = this.radiusAU * AU();
+            this.angle = this.initialAngle + (2 * Math.PI * (days / this.period));
+            this.x = centerX() + this.radius * Math.cos(this.angle);
+            this.y = centerY() + this.radius * Math.sin(this.angle);
+        }
+
+        draw(ctx) {
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.arc(centerX(), centerY(), this.radius, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.fillStyle = this.color;
+            ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    }
+
+    class Spacecraft {
+        constructor(launchDay, startAngle) {
+            this.launchDay = launchDay;
+            this.startAngle = startAngle;
+            this.x = 0;
+            this.y = 0;
+            this.status = '이동 중';
+            this.timeToArrival = HOHMANN_TRANSFER.timeOfFlightDays;
+            this.arrived = false;
+
+            const r1 = PLANET_DATA.earth.radiusAU * AU();
+            const r2 = PLANET_DATA.mars.radiusAU * AU();
+            this.a = (r1 + r2) / 2;
+            this.c = this.a - r1;
+            this.e = this.c / this.a;
+        }
+
+        update(days) {
+            const timeInFlight = days - this.launchDay;
+            if (timeInFlight < 0) return;
+
+            this.timeToArrival = Math.max(0, HOHMANN_TRANSFER.timeOfFlightDays - timeInFlight);
+
+            if (this.timeToArrival <= 0) {
+                this.status = '화성 도착';
+                this.arrived = true;
+                return;
+            }
+            
+            const angleTraveled = Math.PI * (timeInFlight / HOHMANN_TRANSFER.timeOfFlightDays);
+            const r = (this.a * (1 - this.e * this.e)) / (1 + this.e * Math.cos(angleTraveled));
+            
+            const currentAngleInTransfer = this.startAngle + angleTraveled;
+            this.x = centerX() + r * Math.cos(currentAngleInTransfer);
+            this.y = centerY() + r * Math.sin(currentAngleInTransfer);
+        }
+        
+        draw(ctx) {
+            if (this.arrived) return;
+
+            ctx.beginPath();
+            ctx.fillStyle = 'yellow';
+            ctx.arc(this.x, this.y, 4, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        drawTrajectory(ctx) {
+            if (this.arrived) return;
+            
+            ctx.beginPath();
+            ctx.strokeStyle = 'yellow';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+
+            const flightDuration = HOHMANN_TRANSFER.timeOfFlightDays;
+            for (let t = 0; t <= flightDuration; t += 5) {
+                const angleTraveled = Math.PI * (t / flightDuration);
+                const r = (this.a * (1 - this.e * this.e)) / (1 + this.e * Math.cos(angleTraveled));
+                const currentAngleInTransfer = this.startAngle + angleTraveled;
+                const x = centerX() + r * Math.cos(currentAngleInTransfer);
+                const y = centerY() + r * Math.sin(currentAngleInTransfer);
+                if (t === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    }
+    
+    class LaunchRequest {
+        constructor() {
+            this.active = true;
+        }
+
+        updateAndCheck(earth, mars) {
+            let phaseAngleRad = mars.angle - earth.angle;
+            while (phaseAngleRad < 0) phaseAngleRad += 2 * Math.PI;
+
+            const targetPhaseAngleRad = HOHMANN_TRANSFER.phaseAngleDeg * (Math.PI / 180);
+            const earthAngularSpeed = (2 * Math.PI) / PLANET_DATA.earth.periodDays;
+            const tolerance = earthAngularSpeed * simulationState.speed;
+            
+            return Math.abs(phaseAngleRad - targetPhaseAngleRad) < tolerance;
+        }
+
+        drawTarget(ctx, earth, mars) {
+            if (!this.active) return;
+            const targetPhaseAngleRad = HOHMANN_TRANSFER.phaseAngleDeg * (Math.PI / 180);
+            const targetEarthAngle = mars.angle - targetPhaseAngleRad;
+
+            const targetX = centerX() + earth.radius * Math.cos(targetEarthAngle);
+            const targetY = centerY() + earth.radius * Math.sin(targetEarthAngle);
+            
+            ctx.beginPath();
+            ctx.fillStyle = 'red';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.arc(targetX, targetY, 7, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+        }
+    }
+
+    function init() {
+        planets = Object.values(PLANET_DATA).map(data => new Planet(data));
+        spacecrafts = [];
+        launchRequests = [];
+        simulationState.elapsedDays = 0;
+        updateUI();
+        draw();
+    }
+
+    function mainLoop() {
+        if (simulationState.running) {
+            simulationState.elapsedDays += simulationState.speed;
+            
+            const earth = planets.find(p => p.name === '지구');
+            const mars = planets.find(p => p.name === '화성');
+
+            planets.forEach(p => p.update(simulationState.elapsedDays));
+            spacecrafts.forEach(s => s.update(simulationState.elapsedDays));
+            
+            launchRequests.forEach(req => {
+                if (req.active && req.updateAndCheck(earth, mars)) {
+                    spacecrafts = [new Spacecraft(simulationState.elapsedDays, earth.angle)];
+                    req.active = false;
+                }
+            });
+            launchRequests = launchRequests.filter(req => req.active);
+
+            updateUI();
+            draw();
+        }
+        animationFrameId = requestAnimationFrame(mainLoop);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.beginPath();
+        const sunGradient = ctx.createRadialGradient(centerX(), centerY(), 1, centerX(), centerY(), 12);
+        sunGradient.addColorStop(0, '#ffff00');
+        sunGradient.addColorStop(0.5, '#ffd700');
+        sunGradient.addColorStop(1, 'rgba(255, 165, 0, 0)');
+        ctx.fillStyle = sunGradient;
+        ctx.arc(centerX(), centerY(), 20, 0, 2 * Math.PI);
+        ctx.fill();
+
+        spacecrafts.forEach(s => s.drawTrajectory(ctx));
+        planets.forEach(p => p.draw(ctx));
+        
+        const earth = planets.find(p => p.name === '지구');
+        const mars = planets.find(p => p.name === '화성');
+        launchRequests.forEach(req => req.drawTarget(ctx, earth, mars));
+
+        spacecrafts.forEach(s => s.draw(ctx));
+    }
+
+    function updateUI() {
+        daysElapsedSpan.textContent = `${Math.round(simulationState.elapsedDays).toLocaleString()} 일`;
+
+        if (launchRequests.length > 0 || spacecrafts.length > 0) {
+            deltaVSpan.textContent = `${HOHMANN_TRANSFER.totalDeltaV} km/s`;
+        } else {
+             deltaVSpan.textContent = 'N/A';
+        }
+
+        if (spacecrafts.length > 0) {
+            const sc = spacecrafts[0];
+            statusSpan.textContent = sc.status;
+            timeToArrivalSpan.textContent = `${Math.round(sc.timeToArrival)} 일`;
+        } else {
+            statusSpan.textContent = launchRequests.length > 0 ? '최적 위치 대기 중' : '대기 중';
+            timeToArrivalSpan.textContent = 'N/A';
+        }
+    }
+    
+    startButton.addEventListener('click', () => {
+        if (!simulationState.running) {
+            if (simulationState.elapsedDays > 0) {
+                 if (!confirm("시뮬레이션을 초기화하고 다시 시작하시겠습니까?")) return;
+                 init();
+            }
+            simulationState.running = true;
+            startButton.disabled = true;
+            stopButton.disabled = false;
+            launchButton.disabled = false;
+        }
+    });
+
+    stopButton.addEventListener('click', () => {
+        simulationState.running = false;
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        launchButton.disabled = true;
+    });
+
+    launchButton.addEventListener('click', () => {
+        if (simulationState.running) {
+             launchRequests = [new LaunchRequest()];
+             spacecrafts = []; 
+        }
+    });
+
+    speedSlider.addEventListener('input', (e) => {
+        simulationState.speed = parseFloat(e.target.value, 10);
+    });
+
+    window.addEventListener('load', () => {
+        const container = document.getElementById('canvasContainer');
+        const canvasSize = container.clientWidth;
+        canvas.width = canvasSize;
+        canvas.height = canvasSize;
+        init();
+        mainLoop();
+    });
+
+</script>
+
+</body>
+</html>
